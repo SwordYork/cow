@@ -215,9 +215,9 @@ func (ss *SiteStat) create(s string) (vcnt *VisitCnt) {
 // Caller should guarantee that always direct url does not attempt
 // blocked visit.
 func (ss *SiteStat) TempBlocked(url *URL) {
-	debug.Printf("%s temp blocked\n", url.Host)
+	debug.Printf("%s temp blocked\n", url.Domain)
 
-	vcnt := ss.get(url.Host)
+	vcnt := ss.get(url.Domain)
 	if vcnt == nil {
 		panic("TempBlocked should always get existing visitCnt")
 	}
