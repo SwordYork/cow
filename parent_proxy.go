@@ -61,6 +61,9 @@ func initParentPool() {
 		debug.Println("latency parent pool", len(backPool.parent))
 		go updateParentProxyLatency()
 		parentProxy = newLatencyParentPool(backPool.parent)
+	case loadBalanceRandom:
+		debug.Println("hash parent pool", len(backPool.parent))
+		parentProxy = &randomParentPool{*backPool}
 	}
 }
 
@@ -114,6 +117,19 @@ func (pp *hashParentPool) connect(url *URL) (srvconn net.Conn, err error) {
 	debug.Printf("hash host %s try %d parent first", url.Host, start)
 	return connectInOrder(url, pp.parent, start)
 }
+
+// random load balance strategy:
+// Each host will use a proxy based on a random value.
+type randomParentPool struct {
+	backupParentPool
+}
+
+func (pp *randomParentPool) connect(url *URL) (srvconn net.Conn, err error) {
+	start := rand.Intn(len(pp.parent));
+	debug.Printf("random host %s try %d parent first", url.Host, start)
+	return connectInOrder(url, pp.parent, start)
+}
+
 
 func (parent *ParentWithFail) connect(url *URL) (srvconn net.Conn, err error) {
 	const maxFailCnt = 30
