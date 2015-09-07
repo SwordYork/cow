@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"sync/atomic"
 
 	"github.com/cyfdecyf/bufio"
 )
@@ -55,19 +56,20 @@ func (d *Date) UnmarshalJSON(input []byte) error {
 // COW don't need very accurate visit count, so update to visit count value is
 // not protected.
 type VisitCnt struct {
-	Direct    vcntint   `json:"direct"`
-	Blocked   vcntint   `json:"block"`
-	Recent    Date      `json:"recent"`
-	rUpdated  bool      // whether Recent is updated, we only need date precision
-	blockedOn time.Time // when is the site last blocked
+	Direct    		vcntint   `json:"direct"`
+	Blocked   		vcntint   `json:"block"`
+	ConnectionCount uint32	  `json:"connections"`
+	Recent   		Date      `json:"recent"`
+	rUpdated  		bool      // whether Recent is updated, we only need date precision
+	blockedOn 		time.Time // when is the site last blocked
 }
 
-func newVisitCnt(direct, blocked vcntint) *VisitCnt {
-	return &VisitCnt{direct, blocked, Date(time.Now()), true, zeroTime}
+func newVisitCnt(direct, blocked vcntint, connectionCount uint32) *VisitCnt {
+	return &VisitCnt{direct, blocked, connectionCount, Date(time.Now()), true, zeroTime}
 }
 
-func newVisitCntWithTime(direct, blocked vcntint, t time.Time) *VisitCnt {
-	return &VisitCnt{direct, blocked, Date(t), true, zeroTime}
+func newVisitCntWithTime(direct, blocked vcntint, connectionCount uint32, t time.Time) *VisitCnt {
+	return &VisitCnt{direct, blocked, connectionCount, Date(t), true, zeroTime}
 }
 
 func (vc *VisitCnt) userSpecified() bool {
@@ -97,7 +99,8 @@ func (vc *VisitCnt) AsDirect() bool {
 }
 
 func (vc *VisitCnt) AsBlocked() bool {
-	if vc.Blocked == userCnt || vc.AsTempBlocked() {
+	// No direct connection when have blockedDelta blocks, then set to blocked
+	if vc.Blocked == userCnt || vc.AsTempBlocked() || (vc.Blocked > blockedDelta && vc.Direct == 0) {
 		return true
 	}
 	// add some randomness to fix mistake
@@ -143,6 +146,12 @@ func (vc *VisitCnt) visit(inc *vcntint) {
 		vc.Recent = Date(time.Now())
 		visitLock.Unlock()
 	}
+}
+
+
+func (vc *VisitCnt) Connected() {
+	// update connection times
+	atomic.AddUint32(&vc.ConnectionCount, 1)
 }
 
 func (vc *VisitCnt) DirectVisit() {
@@ -196,7 +205,7 @@ func (ss *SiteStat) get(s string) *VisitCnt {
 }
 
 func (ss *SiteStat) create(s string) (vcnt *VisitCnt) {
-	vcnt = newVisitCnt(0, 0)
+	vcnt = newVisitCnt(0, 0, 0)
 	ss.vcLock.Lock()
 	ss.Vcnt[s] = vcnt
 	ss.vcLock.Unlock()
@@ -230,7 +239,7 @@ func (ss *SiteStat) TempBlocked(url *URL) {
 	}
 }
 
-var alwaysDirectVisitCnt = newVisitCnt(userCnt, 0)
+var alwaysDirectVisitCnt = newVisitCnt(userCnt, 0, 0)
 
 func (ss *SiteStat) GetVisitCnt(url *URL) (vcnt *VisitCnt) {
 	if parentProxy.empty() { // no way to retry, so always visit directly
@@ -271,9 +280,10 @@ func (ss *SiteStat) store(statPath string) (err error) {
 		savedSS.Update = Date(now)
 		ss.vcLock.RLock()
 		for site, vcnt := range ss.Vcnt {
-			if vcnt.shouldNotSave() {
-				continue
-			}
+		// always save
+		//	if vcnt.shouldNotSave() {
+		//		continue
+		//	}
 			savedSS.Vcnt[site] = vcnt
 		}
 		ss.vcLock.RUnlock()
@@ -311,23 +321,26 @@ func (ss *SiteStat) store(statPath string) (err error) {
 	return
 }
 
-func (ss *SiteStat) loadList(lst []string, direct, blocked vcntint) {
+func (ss *SiteStat) loadList(lst []string, direct, blocked vcntint, connectionCount uint32) {
 	for _, d := range lst {
-		ss.Vcnt[d] = newVisitCntWithTime(direct, blocked, zeroTime)
+		//prevent override
+		if _, ok := ss.Vcnt[d]; !ok {
+			ss.Vcnt[d] = newVisitCntWithTime(direct, blocked, connectionCount, zeroTime)
+		}
 	}
 }
 
 func (ss *SiteStat) loadBuiltinList() {
-	ss.loadList(blockedDomainList, 0, userCnt)
-	ss.loadList(directDomainList, userCnt, 0)
+	ss.loadList(blockedDomainList, 0, userCnt, 0)
+	ss.loadList(directDomainList, userCnt, 0, 0)
 }
 
 func (ss *SiteStat) loadUserList() {
 	if directList, err := loadSiteList(config.DirectFile); err == nil {
-		ss.loadList(directList, userCnt, 0)
+		ss.loadList(directList, userCnt, 0, 0)
 	}
 	if blockedList, err := loadSiteList(config.BlockedFile); err == nil {
-		ss.loadList(blockedList, 0, userCnt)
+		ss.loadList(blockedList, 0, userCnt, 0)
 	}
 }
 
@@ -436,6 +449,7 @@ func initSiteStat() {
 			siteStat.load("") // load default site list
 		}
 	}
+
 
 	// Dump site stat while running, so we don't always need to close cow to
 	// get updated stat.

@@ -206,7 +206,7 @@ func TestSiteStatGetVisitCnt(t *testing.T) {
 	}
 
 	b, _ := ParseRequestURI("www.btemp.com")
-	ss.Vcnt[b.Host] = newVisitCnt(userCnt, 0)
+	ss.Vcnt[b.Host] = newVisitCnt(userCnt, 0, 0)
 	vc := ss.get(b.Host)
 	if !vc.userSpecified() {
 		t.Error("should be user specified")
@@ -229,7 +229,7 @@ func TestSiteStatGetVisitCnt(t *testing.T) {
 	}
 
 	tw, _ := ParseRequestURI("www.tblocked.com")
-	ss.Vcnt[tw.Domain] = newVisitCnt(0, userCnt)
+	ss.Vcnt[tw.Domain] = newVisitCnt(0, userCnt, 0)
 	si = ss.GetVisitCnt(tw)
 	if !si.AsBlocked() {
 		t.Errorf("%s should use blocked visit\n", tw.Host)

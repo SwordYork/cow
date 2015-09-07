@@ -893,6 +893,8 @@ func (sv *serverConn) isDirect() bool {
 }
 
 func (sv *serverConn) updateVisit() {
+	// count connection times
+	sv.siteInfo.Connected();
 	if sv.visited {
 		return
 	}
