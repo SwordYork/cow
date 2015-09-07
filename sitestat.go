@@ -248,17 +248,11 @@ func (ss *SiteStat) GetVisitCnt(url *URL) (vcnt *VisitCnt) {
 	if url.Domain == "" { // simple host or private ip
 		return alwaysDirectVisitCnt
 	}
-	if vcnt = ss.get(url.Host); vcnt != nil {
+	if vcnt = ss.get(url.Domain); vcnt != nil {
 		return
 	}
-	if len(url.Domain) != len(url.Host) {
-		if dmcnt := ss.get(url.Domain); dmcnt != nil && dmcnt.userSpecified() {
-			// if the domain is not specified by user, should create a new host
-			// visitCnt
-			return dmcnt
-		}
-	}
-	return ss.create(url.Host)
+
+	return ss.create(url.Domain)
 }
 
 func (ss *SiteStat) store(statPath string) (err error) {
