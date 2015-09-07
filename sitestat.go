@@ -152,6 +152,12 @@ func (vc *VisitCnt) visit(inc *vcntint) {
 func (vc *VisitCnt) Connected() {
 	// update connection times
 	atomic.AddUint32(&vc.ConnectionCount, 1)
+    if !vc.rUpdated {
+		vc.rUpdated = true
+		visitLock.Lock()
+		vc.Recent = Date(time.Now())
+		visitLock.Unlock()
+	}
 }
 
 func (vc *VisitCnt) DirectVisit() {
