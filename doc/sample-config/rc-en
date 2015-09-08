@@ -42,6 +42,8 @@ listen = http://127.0.0.1:7777
 #   backup:  default policy, use the first prarent proxy in config,
 #            the others are just backup
 #   hash:    hash to a specific parent proxy according to host name
+#   random:  use a random parent proxy
+#   weighted:use a weight random parent proxy, if there are n parent proxies, then the weight is: n, n-1, ...,2, 1
 #   latency: use the parent proxy with lowest connection latency
 #
 # When one parent proxy fails to connect, COW will try other parent proxies
