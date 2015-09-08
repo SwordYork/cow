@@ -72,12 +72,12 @@ func TestSiteStatLoadStore(t *testing.T) {
 	if err := ld.load(stfile); err != nil {
 		t.Fatal("load stat error:", err)
 	}
-	vc := ld.get(url1.Host)
+	vc := ld.get(url1.Domain)
 	if vc == nil {
-		t.Fatalf("load error, %s not loaded\n", url1.Host)
+		t.Fatalf("load error, %s not loaded\n", url1.Domain)
 	}
-	if vc.Direct != 3 {
-		t.Errorf("load error, %s should have visit cnt 3, got: %d\n", url1.Host, vc.Direct)
+	if vc.Direct != 4 {
+		t.Errorf("load error, %s should have visit cnt 4, got: %d\n", url1.Domain, vc.Direct)
 	}
 
 	vc = ld.get(blockurl1.Host)
@@ -137,15 +137,15 @@ func TestSiteStatVisitCnt(t *testing.T) {
 		t.Errorf("direct domain %s should not have host at first\n", g1.Domain)
 	}
 
-	vc := ss.get(g1.Host)
+	vc := ss.get(g1.Domain)
 	if vc == nil {
-		t.Fatalf("no VisitCnt for %s\n", g1.Host)
+		t.Fatalf("no VisitCnt for %s\n", g1.Domain)
 	}
-	if vc.Direct != 30 {
-		t.Errorf("direct cnt for %s not correct, should be 30, got: %d\n", g1.Host, vc.Direct)
+	if vc.Direct != 32 {
+		t.Errorf("direct cnt for %s not correct, should be 30, got: %d\n", g1.Domain, vc.Direct)
 	}
 	if vc.Blocked != 0 {
-		t.Errorf("block cnt for %s not correct, should be 0 before blocked visit, got: %d\n", g1.Host, vc.Blocked)
+		t.Errorf("block cnt for %s not correct, should be 0 before blocked visit, got: %d\n", g1.Domain, vc.Blocked)
 	}
 	if vc.rUpdated != true {
 		t.Errorf("VisitCnt lvUpdated should be true after visit")
@@ -153,10 +153,10 @@ func TestSiteStatVisitCnt(t *testing.T) {
 
 	vc.BlockedVisit()
 	if vc.Blocked != 1 {
-		t.Errorf("blocked cnt for %s after 1 blocked visit should be 1, got: %d\n", g1.Host, vc.Blocked)
+		t.Errorf("blocked cnt for %s after 1 blocked visit should be 1, got: %d\n", g1.Domain, vc.Blocked)
 	}
 	if vc.Direct != 0 {
-		t.Errorf("direct cnt for %s after 1 blocked visit should be 0, got: %d\n", g1.Host, vc.Direct)
+		t.Errorf("direct cnt for %s after 1 blocked visit should be 0, got: %d\n", g1.Domain, vc.Direct)
 	}
 	if vc.AsDirect() {
 		t.Errorf("after blocked visit, a site should not be considered as direct\n")
@@ -171,15 +171,15 @@ func TestSiteStatVisitCnt(t *testing.T) {
 		t.Error("should be blocked for 2 minutes after blocked visit")
 	}
 	si.BlockedVisit() // After temp blocked, update blocked visit count
-	if si.Blocked != 1 {
-		t.Errorf("blocked cnt for %s not correct, should be 1, got: %d\n", g4.Host, vc.Blocked)
+	if si.Blocked != 2 {
+		t.Errorf("blocked cnt for %s not correct, should be 2, got: %d\n", g4.Domain, vc.Blocked)
 	}
-	vc = ss.get(g4.Host)
+	vc = ss.get(g4.Domain)
 	if vc == nil {
-		t.Fatal("no VisitCnt for ", g4.Host)
+		t.Fatal("no VisitCnt for ", g4.Domain)
 	}
 	if vc.Direct != 0 {
-		t.Errorf("direct cnt for %s not correct, should be 0, got: %d\n", g4.Host, vc.Direct)
+		t.Errorf("direct cnt for %s not correct, should be 0, got: %d\n", g4.Domain, vc.Direct)
 	}
 	if !ss.hasBlockedHost[g4.Domain] {
 		t.Errorf("direct domain %s should have blocked host after blocked visit\n", g4.Domain)
@@ -201,13 +201,13 @@ func TestSiteStatGetVisitCnt(t *testing.T) {
 	gw, _ := ParseRequestURI("www.gtemp.com")
 	sig := ss.GetVisitCnt(gw)
 	// gtemp.com is not user specified, www.gtemp.com should get separate visitCnt
-	if sig == si {
-		t.Error("host should get separate visitCnt for not user specified domain")
+	if sig != si {
+		t.Error("host should get the same visitCnt for not user specified domain")
 	}
 
 	b, _ := ParseRequestURI("www.btemp.com")
-	ss.Vcnt[b.Host] = newVisitCnt(userCnt, 0, 0)
-	vc := ss.get(b.Host)
+	ss.Vcnt[b.Domain] = newVisitCnt(userCnt, 0, 0)
+	vc := ss.get(b.Domain)
 	if !vc.userSpecified() {
 		t.Error("should be user specified")
 	}
