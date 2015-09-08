@@ -62,8 +62,11 @@ func initParentPool() {
 		go updateParentProxyLatency()
 		parentProxy = newLatencyParentPool(backPool.parent)
 	case loadBalanceRandom:
-		debug.Println("hash parent pool", len(backPool.parent))
+		debug.Println("random parent pool", len(backPool.parent))
 		parentProxy = &randomParentPool{*backPool}
+	case loadBalanceWeighted:
+		debug.Println("Weighted parent pool", len(backPool.parent))
+		parentProxy = &weightedParentPool{*backPool}
 	}
 }
 
@@ -127,6 +130,27 @@ type randomParentPool struct {
 func (pp *randomParentPool) connect(url *URL) (srvconn net.Conn, err error) {
 	start := rand.Intn(len(pp.parent));
 	debug.Printf("random host %s try %d parent first", url.Host, start)
+	return connectInOrder(url, pp.parent, start)
+}
+
+
+// weighted load balance strategy:
+// Each host will use a proxy based on a weighted random value.
+type weightedParentPool struct {
+	backupParentPool
+}
+
+func (pp *weightedParentPool) connect(url *URL) (srvconn net.Conn, err error) {
+	total := (len(pp.parent) + 1) * len(pp.parent) / 2
+	n := rand.Intn( total );
+	start := 0;
+	for i := len(pp.parent); i < total; i+=(len(pp.parent)-start) {
+		if n < i {
+			break;
+		}
+		start ++;
+	}
+	debug.Printf("weighted host %s try %d parent first", url.Host, start)
 	return connectInOrder(url, pp.parent, start)
 }
 

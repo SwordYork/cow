@@ -28,6 +28,7 @@ const (
 	loadBalanceHash
 	loadBalanceLatency
 	loadBalanceRandom
+	loadBalanceWeighted
 )
 
 // allow the same tunnel ports as polipo
@@ -455,6 +456,8 @@ func (p configParser) ParseLoadBalance(val string) {
 		config.LoadBalance = loadBalanceLatency
 	case "random":
 		config.LoadBalance = loadBalanceRandom
+	case "weighted":
+		config.LoadBalance = loadBalanceWeighted
 	default:
 		Fatalf("invalid loadBalance mode: %s\n", val)
 	}
