@@ -140,6 +140,16 @@ func (vc *VisitCnt) visit(inc *vcntint) {
 		*inc = maxCnt
 	}
 
+	// Consider as a blocked site
+	if(vc.Blocked == maxCnt && vc.Direct == 0) {
+		vc.Blocked = userCnt;
+	}
+
+	// Consider as an unblocked site
+	if(vc.Direct == maxCnt && vc.Blocked == 0) {
+		vc.Direct = userCnt;
+	}
+
 	if !vc.rUpdated {
 		vc.rUpdated = true
 		visitLock.Lock()
